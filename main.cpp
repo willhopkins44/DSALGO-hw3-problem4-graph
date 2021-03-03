@@ -1,8 +1,6 @@
 #include <iostream>
 #include <vector>
 #include <stack>
-//#define NULL -1 // because 0 is a valid vertex
-// maybe don't do this? does it invalidate checking null as true/false?
 
 using namespace std;
 
@@ -19,14 +17,15 @@ public:
 		node* firstNode;
 	};
 
-private:
 	header* head = nullptr;
 	int size;
+	vector<int> mark; // vector to track which nodes have been visited
 
-public:
 	Graph(int numVertices, vector<vector<int>> sets) { // constructor
 		header* currentHeader = nullptr;
 		size = numVertices;
+		mark.resize(size);
+		mark.assign(size, 0); // initialize all nodes to marked as unvisited
 		if (numVertices > 0) { // else, we don't create the headers because there are no vertices
 			head = new header{ 0 };
 			currentHeader = head;
@@ -80,8 +79,8 @@ public:
 	}
 
 	Graph(const Graph& oldGraph) { // copy constructor
-		cout << "inside copy constructor" << endl;
 		size = oldGraph.size;
+		mark = oldGraph.mark;
 		header* currentHeaderNew = nullptr;
 		if (size > 0) {
 			head = new header{ 0 };
@@ -130,13 +129,13 @@ public:
 		head = nullptr;
 	}
 
-	header* getHead() {
+	/*header* getHead() {
 		return head;
 	}
 
 	int getSize() {
 		return size;
-	}
+	}*/
 
 	void printHeaders() {
 		header* currentHeader = head;
@@ -147,7 +146,7 @@ public:
 		cout << currentHeader->value << endl;
 	}
 
-	void print() {
+	void printAdjacencyList() {
 		header* currentHeader = head;
 		node* currentNode = new node;
 		while (currentHeader) {
@@ -159,6 +158,33 @@ public:
 			}
 			cout << endl;
 			currentHeader = currentHeader->nextHeader;
+		}
+	}
+
+	void printAdjacencyMatrix() {
+		int currentSize = size;
+		vector<vector<int>> matrix (currentSize);
+		for (int row = 0; row < matrix.size(); row++) { // initialize the empty adjacency matrix
+			matrix.at(row).resize(currentSize); // resize each row to have a column for each vertex
+			matrix.at(row).assign(currentSize, 0); // initialize to 0
+		}
+
+		header* currentHeader = head;
+		node* currentNode = new node;
+		while (currentHeader) { // generate the adjacency matrix
+			currentNode = currentHeader->firstNode;
+			while (currentNode) {
+				matrix.at(currentHeader->value).at(currentNode->value) = 1; // mark the current node as 1 in the adjacency matrix
+				currentNode = currentNode->next;
+			}
+			currentHeader = currentHeader->nextHeader;
+		}
+
+		for (int row = 0; row < matrix.size(); row++) { // print the finalized adjacency matrix
+			for (int col = 0; col < matrix.at(row).size(); col++) {
+				cout << matrix.at(row).at(col) << " ";
+			}
+			cout << endl;
 		}
 	}
 };
@@ -179,6 +205,9 @@ parsedInputData parseInput(vector<int> input) { // parse the input and return a 
 		if (input.at(i) == -1) { // end of input
 			break;
 		}
+		if (input.at(i) > input.at(0) || input.at(i+1) > input.at(0)) { // if a vertex is greater than the number of vertices (i.e. you have a set 1 2 4 and are missing 3)
+			throw invalid_argument("Missing intermediate vertices");
+		}
 		vector<int> set = { input.at(i), input.at(i + 1) }; // create the set
 		parsedInput.sets.push_back(set); // add the set to the parsedInput object
 		i++; // increment i again so that we start at the next set instead of the next value (which belongs to the current set)
@@ -186,34 +215,36 @@ parsedInputData parseInput(vector<int> input) { // parse the input and return a 
 	return parsedInput;
 };
 
-vector<int> DFS(Graph g, int v) { // returns vector of vertices sorted in order of visited by DFS
-	int size = g.getSize();
+vector<int> DFS(Graph& g, int v) { // returns vector of vertices sorted in order of visited by DFS
+	int size = g.size;
 	
 	stack <int> visitedStack; // stack to track DFS action
 	vector<int> visitedNodes; // output vector of visited nodes
 
-	vector<int> mark (size); // vector to track which nodes have been visited
-	mark.assign(size, 0); // initialize all values to 0 (unvisited)
+	//vector<int> mark (size); // vector to track which nodes have been visited
+	//mark.assign(size, 0); // initialize all values to 0 (unvisited)
 
-	mark.at(v) = 1; // v is marked as visited
-	visitedNodes.push_back(v); // v is added to the vector of visited nodes
-	visitedStack.push(v); // v is added to stack
-	Graph::header* head = g.getHead();
+	if (!g.mark.at(v)) {
+		g.mark.at(v) = 1; // v is marked as visited
+		visitedNodes.push_back(v); // v is added to the vector of visited nodes
+		visitedStack.push(v); // v is added to stack
+	}
+	Graph::header* head = g.head;
 	while (visitedStack.size() > 0) { // while there are items in the stack
-		v = visitedStack.top();
+		v = visitedStack.top(); // pop the first item off the stack and store its value
 		visitedStack.pop();
 
-		// add all vertices adjacent to v to stack
+		// add all vertices adjacent to v to the stack
 		Graph::header* currentHeader = head;
 		while (currentHeader) {
-			if (v == head->value) {
+			if (v == currentHeader->value) {
 				Graph::node* currentNode = currentHeader->firstNode;
 				while (currentNode) {
 					int currentValue = currentNode->value;
-					if (!mark.at(currentValue)) { // if the current value has not been visited
-						mark.at(currentValue) = 1;
-						visitedNodes.push_back(currentValue);
-						visitedStack.push(currentValue);
+					if (!g.mark.at(currentValue)) { // if the current value has not been visited
+						g.mark.at(currentValue) = 1; // mark as visited
+						visitedNodes.push_back(currentValue); // add to vector of visited nodes
+						visitedStack.push(currentValue); // push to visited stack
 					}
 					currentNode = currentNode->next;
 				}
@@ -225,11 +256,38 @@ vector<int> DFS(Graph g, int v) { // returns vector of vertices sorted in order 
 	return visitedNodes;
 }
 
+vector<vector<int>> Components(Graph g) {
+	// returns a list of connected component sets (vector of vectors)
+
+	vector<vector<int>> components;
+	for (int v = 0; v < g.size; v++) {
+		vector<int> component = DFS(g, v); // call DFS for each vertex
+		if (component.size() > 0) { // if the connected component exists (has a size),
+			components.push_back(component); // add it to the list of connected components
+		}
+	}
+
+	g.mark.assign(g.size, 0); // re-mark all nodes in g as unvisited
+
+	return components;
+}
+
+/*vector<int> readInput() {
+	vector<int> input;
+
+	int numVertices;
+	cout << "Number of vertices: ";
+	cin >> numVertices;
+}*/
+
 int main() {
 
 	// function to get input
 	
-	vector<int> input = { 5, 0, 1, 1, 4, 2, 3, 1, 3, 3, 4, -1 };
+	//vector<int> input = { 5, 0, 1, 1, 4, 2, 3, 1, 3, 3, 4, -1 };
+	vector<int> input = { 10, 0, 1, 1, 3, 1, 4, 3, 4, 3, 2, 5, 6, 7, 8, 7, 9, -1 };
+
+	//vector<int> input = readInput();
 
 	try {
 		parsedInputData parsedInput = parseInput(input);
@@ -239,14 +297,30 @@ int main() {
 		}*/
 
 		Graph g(parsedInput.numVertices, parsedInput.sets);
-		g.print();
-		vector<int> visitedNodes = DFS(g, 0);
-		for (int i = 0; i < visitedNodes.size(); i++) {
+		cout << "Adjacency list:" << endl;
+		g.printAdjacencyList();
+		//vector<int> visitedNodes = DFS(g, 0);
+		//cout << "Visited nodes:";
+		/*for (int i = 0; i < visitedNodes.size(); i++) {
 			cout << visitedNodes.at(i) << " ";
 		}
-		cout << endl;
-		//Graph* g = new Graph(parsedInput.numVertices, parsedInput.sets);
-		//delete g;
+		cout << endl;*/
+
+		vector<vector<int>> connectedComponents = Components(g);
+		for (int i = 0; i < connectedComponents.size(); i++) {
+			cout << "Connected component: {";
+			for (int j = 0; j < connectedComponents.at(i).size(); j++) {
+				if (j != 0) {
+					cout << ",";
+				}
+				cout << " ";
+				cout << connectedComponents.at(i).at(j);
+			}
+			cout << " }" << endl;
+		}
+
+		cout << endl << "Adjacency matrix:" << endl << endl;
+		g.printAdjacencyMatrix();
 	}
 	catch (invalid_argument e) {
 		cout << e.what() << endl;
