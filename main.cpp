@@ -199,19 +199,23 @@ parsedInputData parseInput(vector<int> input) { // parse the input and return a 
 		throw invalid_argument("Incomplete set"); // input is odd, so there will be one incomplete set
 	}
 
-	parsedInputData parsedInput{ input.at(0), {} }; // numVertices assigned the first value of input
+	int numVertices = input.at(0);
+	parsedInputData parsedInput{ numVertices, {} }; // numVertices assigned the first value of input
 													// sets are assigned an empty vector
-	for (int i = 1; i < sizeof(input); i++) { // fill the sets vector with sets
+	for (int i = 1; i < input.size(); i++) { // fill the sets vector with sets
 		if (input.at(i) == -1) { // end of input
 			break;
 		}
-		if (input.at(i) > input.at(0) || input.at(i+1) > input.at(0)) { // if a vertex is greater than the number of vertices (i.e. you have a set 1 2 4 and are missing 3)
-			throw invalid_argument("Missing intermediate vertices");
+		if (input.at(i) > numVertices - 1 || input.at(i+1) > numVertices - 1) { // if a vertex is greater than the number of vertices (i.e. you have a set 1 2 4 and are missing 3)
+			throw invalid_argument("Missing intermediate vertices. For example, you may have included vertices 0 1 2 4 but forgotten 3");
 		}
 		vector<int> set = { input.at(i), input.at(i + 1) }; // create the set
 		parsedInput.sets.push_back(set); // add the set to the parsedInput object
 		i++; // increment i again so that we start at the next set instead of the next value (which belongs to the current set)
 	}
+	/*if (numVertices != parsedInput.sets.size()) {
+		throw invalid_argument("Mismatch between number of vertices and number of inputted vertices");
+	}*/
 	return parsedInput;
 };
 
@@ -272,43 +276,50 @@ vector<vector<int>> Components(Graph g) {
 	return components;
 }
 
-/*vector<int> readInput() {
+vector<int> readInput() {
 	vector<int> input;
 
 	int numVertices;
-	cout << "Number of vertices: ";
+	cout << "Enter the number of vertices: ";
 	cin >> numVertices;
-}*/
+	input.push_back(numVertices);
+
+	int vertex = 0;
+	cout << "Enter edges. Enter -1 to finalize input" << endl;
+	cout << "If your number of vertices is larger than the number of vertices used in your edges, it will be assumed that the remaining vertices are isolated (no neighbors)" << endl << endl;
+
+	bool left = true;
+	while (vertex > -1) {
+		if (left) {
+			cout << "Left vertex of edge ( (LEFT, RIGHT) ) or -1: ";
+			left = !left;
+		}
+		else {
+			cout << "Right vertex of edge ( (LEFT, RIGHT) ): ";
+			left = !left;
+		}
+		cin >> vertex;
+		input.push_back(vertex);
+	}
+
+	return input;
+}
 
 int main() {
 
-	// function to get input
-	
-	//vector<int> input = { 5, 0, 1, 1, 4, 2, 3, 1, 3, 3, 4, -1 };
-	vector<int> input = { 10, 0, 1, 1, 3, 1, 4, 3, 4, 3, 2, 5, 6, 7, 8, 7, 9, -1 };
-
-	//vector<int> input = readInput();
+	vector<int> input = readInput();
 
 	try {
 		parsedInputData parsedInput = parseInput(input);
-		/*cout << parsedInput.numVertices << endl;
-		for (int i = 0; i < parsedInput.sets.size(); i++) {
-			cout << parsedInput.sets.at(i).at(0) << "," << parsedInput.sets.at(i).at(1) << endl;
-		}*/
 
 		Graph g(parsedInput.numVertices, parsedInput.sets);
-		cout << "Adjacency list:" << endl;
+		cout << endl << "Adjacency list:" << endl << endl;
 		g.printAdjacencyList();
-		//vector<int> visitedNodes = DFS(g, 0);
-		//cout << "Visited nodes:";
-		/*for (int i = 0; i < visitedNodes.size(); i++) {
-			cout << visitedNodes.at(i) << " ";
-		}
-		cout << endl;*/
 
 		vector<vector<int>> connectedComponents = Components(g);
-		for (int i = 0; i < connectedComponents.size(); i++) {
-			cout << "Connected component: {";
+		cout << endl << "Connected components:" << endl << endl;
+		for (int i = 0; i < connectedComponents.size(); i++) { // display all connected components
+			cout << "{";
 			for (int j = 0; j < connectedComponents.at(i).size(); j++) {
 				if (j != 0) {
 					cout << ",";
