@@ -1,11 +1,13 @@
 #include <iostream>
 #include <vector>
-#define NULL -1 // because 0 is a valid vertex
+#include <stack>
+//#define NULL -1 // because 0 is a valid vertex
 // maybe don't do this? does it invalidate checking null as true/false?
 
 using namespace std;
 
 class Graph {
+public:
 	struct node {
 		int value;
 		node* next;
@@ -19,10 +21,12 @@ class Graph {
 
 private:
 	header* head = nullptr;
+	int size;
 
 public:
 	Graph(int numVertices, vector<vector<int>> sets) { // constructor
-		header* currentHeader = new header;
+		header* currentHeader = nullptr;
+		size = numVertices;
 		if (numVertices > 0) { // else, we don't create the headers because there are no vertices
 			head = new header{ 0 };
 			currentHeader = head;
@@ -33,7 +37,7 @@ public:
 			currentHeader = newHeader; // update head to be the next header and loop until all vertices have been accounted for
 		}
 
-		for (int i = 0; i < sets.size(); i++) {
+		for (int i = 0; i < sets.size(); i++) { // for each set
 			int leftVertex = sets.at(i).at(0); // left vertex in the set (LEFT, RIGHT)
 			int rightVertex = sets.at(i).at(1); // right vertex in the set (LEFT, RIGHT)
 			currentHeader = head;
@@ -70,6 +74,46 @@ public:
 		}
 	}
 
+	Graph(header* in_head, int in_size) { // secondary constructor (do I need this?)
+		head = in_head;
+		size = in_size;
+	}
+
+	Graph(const Graph& oldGraph) { // copy constructor
+		cout << "inside copy constructor" << endl;
+		size = oldGraph.size;
+		header* currentHeaderNew = nullptr;
+		if (size > 0) {
+			head = new header{ 0 };
+			currentHeaderNew = head;
+		}
+		header* currentHeaderOld = oldGraph.head;
+		while (currentHeaderOld) {
+			currentHeaderNew->value = currentHeaderOld->value;
+			node* currentNodeOld = currentHeaderOld->firstNode;
+			node* currentNodeNew = nullptr;
+			if (currentNodeOld) { // if the current header has nodes
+				currentNodeNew = new node{ NULL, nullptr };
+				currentHeaderNew->firstNode = currentNodeNew;
+			}
+			while (currentNodeOld) {
+				currentNodeNew->value = currentNodeOld->value;
+				currentNodeOld = currentNodeOld->next;
+				if (currentNodeOld) { // if there is a next node
+					node* newNode = new node{ NULL, nullptr }; // create a new node
+					currentNodeNew->next = newNode; // point to it in the new graph
+					currentNodeNew = currentNodeNew->next;
+				}
+			}
+			currentHeaderOld = currentHeaderOld->nextHeader;
+			if (currentHeaderOld) {
+				header* newHeader = new header{ NULL, nullptr, nullptr };
+				currentHeaderNew->nextHeader = newHeader;
+				currentHeaderNew = currentHeaderNew->nextHeader;
+			}
+		}
+	}
+
 	~Graph() { // destructor
 		header* currentHeader = head;
 		while (currentHeader) {
@@ -83,6 +127,15 @@ public:
 			currentHeader = currentHeader->nextHeader;
 			delete previousHeader;
 		}
+		head = nullptr;
+	}
+
+	header* getHead() {
+		return head;
+	}
+
+	int getSize() {
+		return size;
 	}
 
 	void printHeaders() {
@@ -133,6 +186,45 @@ parsedInputData parseInput(vector<int> input) { // parse the input and return a 
 	return parsedInput;
 };
 
+vector<int> DFS(Graph g, int v) { // returns vector of vertices sorted in order of visited by DFS
+	int size = g.getSize();
+	
+	stack <int> visitedStack; // stack to track DFS action
+	vector<int> visitedNodes; // output vector of visited nodes
+
+	vector<int> mark (size); // vector to track which nodes have been visited
+	mark.assign(size, 0); // initialize all values to 0 (unvisited)
+
+	mark.at(v) = 1; // v is marked as visited
+	visitedNodes.push_back(v); // v is added to the vector of visited nodes
+	visitedStack.push(v); // v is added to stack
+	Graph::header* head = g.getHead();
+	while (visitedStack.size() > 0) { // while there are items in the stack
+		v = visitedStack.top();
+		visitedStack.pop();
+
+		// add all vertices adjacent to v to stack
+		Graph::header* currentHeader = head;
+		while (currentHeader) {
+			if (v == head->value) {
+				Graph::node* currentNode = currentHeader->firstNode;
+				while (currentNode) {
+					int currentValue = currentNode->value;
+					if (!mark.at(currentValue)) { // if the current value has not been visited
+						mark.at(currentValue) = 1;
+						visitedNodes.push_back(currentValue);
+						visitedStack.push(currentValue);
+					}
+					currentNode = currentNode->next;
+				}
+			}
+			currentHeader = currentHeader->nextHeader;
+		}
+	}
+
+	return visitedNodes;
+}
+
 int main() {
 
 	// function to get input
@@ -146,12 +238,15 @@ int main() {
 			cout << parsedInput.sets.at(i).at(0) << "," << parsedInput.sets.at(i).at(1) << endl;
 		}*/
 
-		//Graph g(parsedInput.numVertices, parsedInput.sets);
-		Graph* g = new Graph(parsedInput.numVertices, parsedInput.sets);
-		//g.printHeaders();
-		//g.print();
-		g->print();
-		delete g;
+		Graph g(parsedInput.numVertices, parsedInput.sets);
+		g.print();
+		vector<int> visitedNodes = DFS(g, 0);
+		for (int i = 0; i < visitedNodes.size(); i++) {
+			cout << visitedNodes.at(i) << " ";
+		}
+		cout << endl;
+		//Graph* g = new Graph(parsedInput.numVertices, parsedInput.sets);
+		//delete g;
 	}
 	catch (invalid_argument e) {
 		cout << e.what() << endl;
