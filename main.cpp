@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <stack>
+#include <string>
 
 using namespace std;
 
@@ -13,7 +14,7 @@ public:
 
 	struct header {
 		int value;
-		header* nextHeader; // rename to next?
+		header* nextHeader;
 		node* firstNode;
 	};
 
@@ -129,22 +130,14 @@ public:
 		head = nullptr;
 	}
 
-	/*header* getHead() {
-		return head;
-	}
-
-	int getSize() {
-		return size;
-	}*/
-
-	void printHeaders() {
+	/*void printHeaders() {
 		header* currentHeader = head;
 		while (currentHeader->nextHeader) {
 			cout << currentHeader->value << endl;
 			currentHeader = currentHeader->nextHeader;
 		}
 		cout << currentHeader->value << endl;
-	}
+	}*/
 
 	void printAdjacencyList() {
 		header* currentHeader = head;
@@ -203,19 +196,19 @@ parsedInputData parseInput(vector<int> input) { // parse the input and return a 
 	parsedInputData parsedInput{ numVertices, {} }; // numVertices assigned the first value of input
 													// sets are assigned an empty vector
 	for (int i = 1; i < input.size(); i++) { // fill the sets vector with sets
-		if (input.at(i) == -1) { // end of input
+		if (input.at(i) < 0) { // end of input
 			break;
 		}
-		if (input.at(i) > numVertices - 1 || input.at(i+1) > numVertices - 1) { // if a vertex is greater than the number of vertices (i.e. you have a set 1 2 4 and are missing 3)
-			throw invalid_argument("Missing intermediate vertices. For example, you may have included vertices 0 1 2 4 but forgotten 3");
+		if (input.at(i) > numVertices - 1) { // if a vertex is greater than the number of vertices (i.e. you have a set 1 2 4 and are missing 3)
+			throw invalid_argument("Number of vertices too small to hold vertex " + to_string(input.at(i)));
+		}
+		else if (input.at(i + 1) > numVertices - 1) {
+			throw invalid_argument("Number of vertices too small to hold vertex " + to_string(input.at(i + 1)));
 		}
 		vector<int> set = { input.at(i), input.at(i + 1) }; // create the set
 		parsedInput.sets.push_back(set); // add the set to the parsedInput object
 		i++; // increment i again so that we start at the next set instead of the next value (which belongs to the current set)
 	}
-	/*if (numVertices != parsedInput.sets.size()) {
-		throw invalid_argument("Mismatch between number of vertices and number of inputted vertices");
-	}*/
 	return parsedInput;
 };
 
@@ -224,9 +217,6 @@ vector<int> DFS(Graph& g, int v) { // returns vector of vertices sorted in order
 	
 	stack <int> visitedStack; // stack to track DFS action
 	vector<int> visitedNodes; // output vector of visited nodes
-
-	//vector<int> mark (size); // vector to track which nodes have been visited
-	//mark.assign(size, 0); // initialize all values to 0 (unvisited)
 
 	if (!g.mark.at(v)) {
 		g.mark.at(v) = 1; // v is marked as visited
@@ -279,28 +269,16 @@ vector<vector<int>> Components(Graph g) {
 vector<int> readInput() {
 	vector<int> input;
 
+	cout << "Enter the number of vertices followed by a sequence of pairs representing the edges of the graph. Indicate end of input with a negative integer sentinel: ";
+
 	int numVertices;
-	cout << "Enter the number of vertices: ";
+	int vertex;
 	cin >> numVertices;
 	input.push_back(numVertices);
-
-	int vertex = 0;
-	cout << "Enter edges. Enter -1 to finalize input" << endl;
-	cout << "If your number of vertices is larger than the number of vertices used in your edges, it will be assumed that the remaining vertices are isolated (no neighbors)" << endl << endl;
-
-	bool left = true;
-	while (vertex > -1) {
-		if (left) {
-			cout << "Left vertex of edge ( (LEFT, RIGHT) ) or -1: ";
-			left = !left;
-		}
-		else {
-			cout << "Right vertex of edge ( (LEFT, RIGHT) ): ";
-			left = !left;
-		}
-		cin >> vertex;
+	while (cin >> vertex && cin.get() != '\n') {
 		input.push_back(vertex);
 	}
+	input.push_back(vertex);
 
 	return input;
 }
